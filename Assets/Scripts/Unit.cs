@@ -37,11 +37,6 @@ public class Unit : MonoBehaviour
                 PathRequestManager.RequestPath(new PathRequest(transform.position, target.position, OnPathFound));
                 targetPosOld = target.position;
             }
-            Node newNode = Grid.GetNodeFromWorldPosition(transform.position);
-            if (node != newNode) {
-                AddPenaltyToNode(newNode);
-                PathRequestManager.RequestPath(new PathRequest(transform.position, target.position, OnPathFound));
-            }
         }
     }
     IEnumerator FollowPath() {
