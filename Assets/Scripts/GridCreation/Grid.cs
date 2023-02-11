@@ -6,6 +6,7 @@ public class Grid : MonoBehaviour
 {
     public bool displayGridGizmos;
     public LayerMask unwalkableMask;
+    public LayerMask unitMask;
     public Vector2 gridWorldSize;
     public float nodeRadius;
     public TerrainType[] walkableRegions;
@@ -14,7 +15,7 @@ public class Grid : MonoBehaviour
     Dictionary<int, int> walkableRegionsDict = new Dictionary<int, int>();
     Node[,] grid;
 
-    float nodeDiameter;
+    public static float nodeDiameter;
     int gridSizeX, gridSizeY;
 
     int penaltyMin = int.MaxValue;
@@ -43,7 +44,7 @@ public class Grid : MonoBehaviour
             for (int y = 0; y < gridSizeY; y++)
             {
                 Vector3 worldPoint = worldBottomLeft + Vector3.right * (x * nodeDiameter + nodeRadius) + Vector3.forward * (y * nodeDiameter + nodeRadius);
-                bool walkable = !Physics.CheckSphere(worldPoint, nodeDiameter, unwalkableMask);
+                bool walkable = !Physics.CheckSphere(worldPoint, nodeRadius, unwalkableMask);
                 int movementPenalty = 0;
                 Ray ray = new Ray(worldPoint + Vector3.up * 50, Vector3.down);
                 RaycastHit hit;
@@ -52,7 +53,7 @@ public class Grid : MonoBehaviour
                 grid[x, y] = new Node(walkable, worldPoint, x, y, movementPenalty);
             }
         }
-        BlurPenaltyMap(2);
+        BlurPenaltyMap(3);
     }
 
     public static Node GetNodeFromWorldPosition(Vector3 worldPosition) {
@@ -104,6 +105,7 @@ public class Grid : MonoBehaviour
             }
         }
     }
+    // Get All Neighbours
     public static List<Node> GetNeighbours(Node node) {
         List<Node> neighbours = new List<Node>();
         for (int x = -1; x <= 1; x++)
@@ -118,7 +120,26 @@ public class Grid : MonoBehaviour
         }
         return neighbours;
     }
-
+    // Get neighbour closest to target position and not occupied by other units.
+    public static Node GetNeighbour(Node node, Vector3 targetPos)
+    {
+        Node closest = null;
+        float minDst = 0;
+        foreach (Node n in GetNeighbours(node)) {
+            if (!n.walkable || 
+                Physics.CheckSphere(n.worldPosition, instance.nodeRadius, instance.unitMask) ||
+                GetNodeFromWorldPosition(targetPos) == n) continue;
+            if (closest == null) { closest = n; minDst = Vector3.Distance(n.worldPosition, targetPos); continue; }
+            float dst = Vector3.Distance(n.worldPosition, targetPos);
+            if (dst < minDst) { minDst = dst; closest = n; }
+        }
+        return closest;
+    }
+    public static Node GetRelativeNode(Node node, Vector2 offset) {
+        if (node.gridX + offset.x < 0 || node.gridX + offset.x >= instance.gridWorldSize.x) return null;
+        if (node.gridY + offset.y < 0 || node.gridY + offset.y >= instance.gridWorldSize.y) return null;
+        return instance.grid[node.gridX + (int)offset.x, node.gridY + (int)offset.y];
+    }
     void OnDrawGizmos() {
         Gizmos.DrawWireCube(transform.position, new Vector3(gridWorldSize.x, 1, gridWorldSize.y));
 

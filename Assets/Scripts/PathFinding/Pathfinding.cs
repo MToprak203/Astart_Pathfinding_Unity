@@ -14,32 +14,31 @@ public class Pathfinding : MonoBehaviour
         Node startNode = Grid.GetNodeFromWorldPosition(request.pathStart);
         Node targetNode = Grid.GetNodeFromWorldPosition(request.pathEnd);
 
-        if (startNode.walkable) {
-            Heap<Node> openSet = new Heap<Node>(grid.MaxSize);
-            HashSet<Node> closedSet = new HashSet<Node>();
+        Heap<Node> openSet = new Heap<Node>(grid.MaxSize);
+        HashSet<Node> closedSet = new HashSet<Node>();
 
-            openSet.Add(startNode);
+        openSet.Add(startNode);
 
-            while (openSet.Count > 0) {
-                Node currentNode = openSet.RemoveFirst();
-                closedSet.Add(currentNode);
+        while (openSet.Count > 0) {
+            Node currentNode = openSet.RemoveFirst();
+            closedSet.Add(currentNode);
 
-                if (currentNode == targetNode) { pathSuccess = true; break; }
-                
-                foreach (Node neighbour in Grid.GetNeighbours(currentNode)) {
-                    if (closedSet.Contains(neighbour)) continue;
+            if (currentNode == targetNode) { pathSuccess = true; break; }
+            
+            foreach (Node neighbour in Grid.GetNeighbours(currentNode)) {
+                if (closedSet.Contains(neighbour)) continue;
 
-                    int newMovCostToNeigh = currentNode.gCost + GetManhattanDistance(currentNode, neighbour) + neighbour.movementPenalty;
-                    if (newMovCostToNeigh > neighbour.fCost || !openSet.Contains(neighbour)) {
-                        neighbour.gCost = newMovCostToNeigh;
-                        neighbour.hCost = GetManhattanDistance(neighbour, targetNode);
-                        neighbour.parent = currentNode;
-                        if (!openSet.Contains(neighbour)) openSet.Add(neighbour);
-                        else openSet.UpdateItem(neighbour);
-                    }
+                int newMovCostToNeigh = currentNode.gCost + GetManhattanDistance(currentNode, neighbour) + neighbour.movementPenalty;
+                if (newMovCostToNeigh < neighbour.gCost || !openSet.Contains(neighbour)) {
+                    neighbour.gCost = newMovCostToNeigh;
+                    neighbour.hCost = GetManhattanDistance(neighbour, targetNode);
+                    neighbour.parent = currentNode;
+                    if (!openSet.Contains(neighbour)) openSet.Add(neighbour);
+                    else openSet.UpdateItem(neighbour);
                 }
             }
         }
+        
         if (pathSuccess) {
             waypoints = RetracePath(startNode, targetNode);
             pathSuccess = waypoints.Length > 0;
