@@ -1,15 +1,17 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class Unit : MonoBehaviour
 {
     public float speed = 1f;
     public float turnSpeed = 3f;
+    public float turnDst = 0f;
+    public float stoppingDst = 0f;
     Path path;
 
     public int unitNodePenalty;
 
+    int pathIndex;
     public bool followingPath;
     public LayerMask unitMask;
     public float raycastDistance = .2f;
@@ -17,10 +19,15 @@ public class Unit : MonoBehaviour
     Node node;
     Vector3 target;
 
-    void Start() { UnitSelections.Instance.unitList.Add(this); }
+    bool wait = false;
+
+    void Start() { 
+        UnitSelections.Instance.unitList.Add(this);
+        AddPenaltyToCurrentNode(Grid.GetNodeFromWorldPosition(transform.position));
+    }
     public void OnPathFound(Vector3[] waypoints, bool pathSuccessful) { 
         if (pathSuccessful) { 
-            path = new Path(waypoints, transform.position);
+            path = new Path(waypoints, transform.position, turnDst, stoppingDst);
             StopCoroutine("FollowPath");
             StartCoroutine("FollowPath");
         }
@@ -29,17 +36,18 @@ public class Unit : MonoBehaviour
     public void CreatePathRequest() { PathRequestManager.RequestPath(new PathRequest(transform.position, target, OnPathFound)); }
     IEnumerator FollowPath() {
         followingPath = true;
-        int pathIndex = 0;
+        pathIndex = 0;
         transform.LookAt(path.lookPoints[0]);
-
         float speedPercent = 1;
 
         while (followingPath) {
 
             Vector2 pos2D = new Vector2(transform.position.x, transform.position.z);
-            while (path.turnBoundaries[pathIndex].HasCrossedLine(pos2D)) { if (pathIndex == path.finishLineIndex) { followingPath = false; break; } else pathIndex++; }
+            if (path.turnBoundaries[pathIndex].HasCrossedLine(pos2D)) { if (pathIndex == path.finishLineIndex) followingPath = false; else pathIndex++; }
 
             if (!followingPath) break;
+
+            speedPercent = stoppingDst == 0 ? 1 : Mathf.Clamp01(path.turnBoundaries[path.finishLineIndex].DistanceFromPoint(pos2D) / stoppingDst);
 
             Quaternion targetRotation = Quaternion.LookRotation(path.lookPoints[pathIndex] - transform.position);
             transform.rotation = Quaternion.Lerp(transform.rotation, targetRotation, Time.deltaTime * turnSpeed);
@@ -48,43 +56,36 @@ public class Unit : MonoBehaviour
             Node newNode = Grid.GetNodeFromWorldPosition(transform.position);
             if (node != newNode) AddPenaltyToCurrentNode(newNode);
 
-            #region Raycast
-
-            Ray rayForward = new Ray(transform.position, transform.forward);
-            RaycastHit hitForward;
-            Debug.DrawRay(transform.position, transform.forward, Color.blue);
-
-            if (Physics.Raycast(rayForward, out hitForward, raycastDistance, unitMask))
-            {
-                Debug.Log("forward hit");
-                Unit cUnit = hitForward.transform.GetComponent<Unit>();
-                if (cUnit.followingPath && !cUnit.CheckFaceToFace(GetInstanceID())) yield return new WaitForSeconds(Grid.nodeDiameter / speed);
-                else
-                {
-                    cUnit.MarkTheCurrentNode();
-                    followingPath = false;
-                    CreatePathRequest();
-                }
-            }
-            #endregion
+            if (wait) yield return new WaitForSeconds(Grid.nodeDiameter / speed);
 
             yield return null;
         }
+        path = null;
     }
-    bool CheckFaceToFace(int instanceID) => GetInstanceID() == instanceID;
-    public void MarkTheCurrentNode() { StartCoroutine("MarkNode"); }
-    IEnumerator MarkNode() {
-        Node node = Grid.GetNodeFromWorldPosition(transform.position);
-        node.movementPenalty += unitNodePenalty;
-        yield return new WaitForSeconds(speed / 2);
-        node.movementPenalty -= unitNodePenalty;
+    public int GetRemainLookPoint() { 
+        if (path != null) return path.finishLineIndex - pathIndex;
+        return -1;
     }
     void AddPenaltyToCurrentNode(Node newNode) {
-        if (node != null) node.movementPenalty -= unitNodePenalty * 5;
+        if (node != null) {
+            node.movementPenalty -= unitNodePenalty * 5;
+            node.hasUnit = false;
+        }
         node = newNode;
         node.movementPenalty += unitNodePenalty * 5;
+        node.hasUnit = true;
     }
     void OnDrawGizmos() { if (path != null && followingPath)  path.DrawWithGizmos(target); }
 
-    private void OnDestroy() { UnitSelections.Instance.unitList.Remove(this); }
+    private void OnDestroy() { UnitSelections.Instance.unitList.Remove(this); UnitSelections.Instance.unitsSelected.Remove(this); }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (!followingPath) return;
+        Unit cUnit = other.GetComponent<Unit>();
+        if (cUnit.followingPath) { if (cUnit.GetRemainLookPoint() < GetRemainLookPoint()) wait = true; }
+        else if (cUnit.GetRemainLookPoint() == 0) followingPath = false;
+    }
+
+    private void OnTriggerExit(Collider other) { wait = false; }
 }

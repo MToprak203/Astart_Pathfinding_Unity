@@ -9,6 +9,7 @@ public class UnitClick : MonoBehaviour
     public LayerMask ground;
 
     bool abortCoroutine;
+
     #region SquareFormation
 
     [SerializeField, Range(1f, 5f)] float spread = 1;
@@ -20,25 +21,21 @@ public class UnitClick : MonoBehaviour
         int size = selectedUnits.Count;
         int unitIndex = 0;
         int length = Mathf.FloorToInt(Mathf.Sqrt(size)) + 1;
-        Debug.Log(length);
-        var middleOffset = new Vector3(length * .5f, 0, length * .5f);
 
-        for (int x = 0; x < length; x++) {
-            for (int z = 0; z < length; z++) {
+        for (int x = -length / 2; x <= length / 2; x++) {
+            for (int z = -length / 2; z <= length / 2; z++) {
                 if (abortCoroutine) yield break;
                 Vector3 pos = new Vector3(x, 0, z);
-                pos = (pos - middleOffset) * spread * Grid.nodeDiameter + target;
+                pos = pos * Grid.nodeDiameter * spread + target;
                 pos += GetNoise(pos);
                 Unit unit = selectedUnits[unitIndex];
                 unit.SetTarget(pos);
                 unit.CreatePathRequest();
                 unitIndex++;
-                if (unitIndex >= size) yield break;
-                yield return new WaitForSeconds(.01f);
+                if (unitIndex == size) yield break;
+                yield return null;
             }
         }
-        
-        
     }
     #endregion
 
@@ -56,8 +53,7 @@ public class UnitClick : MonoBehaviour
             else { if (Input.GetKey(KeyCode.LeftShift)) UnitSelections.Instance.DeselectAll(); }
         }
 
-        if (Input.GetMouseButtonDown(1))
-        {
+        if (UnitSelections.Instance.unitsSelected.Count > 0 && Input.GetMouseButtonDown(1)) {
             RaycastHit hit;
             Ray ray = cam.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out hit, Mathf.Infinity, ground)) {

@@ -15,6 +15,7 @@ public class Node : IHeapItem<Node>
     public Node parent;
     int heapIndex;
 
+    public bool hasUnit;
     public int fCost { get { return gCost + hCost; } }
 
     public int HeapIndex { get => heapIndex; set => heapIndex = value; }
