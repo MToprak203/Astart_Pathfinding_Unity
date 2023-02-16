@@ -27,9 +27,7 @@ public class PathRequestManager : MonoBehaviour {
         threadStart.Invoke();
     }
 
-    public void FinishedProcessingPath(PathResult result) {
-        lock (results) { results.Enqueue(result); }
-    }
+    public void FinishedProcessingPath(PathResult result) { lock (results) { results.Enqueue(result); } }
 }
 
 public struct PathRequest

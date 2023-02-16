@@ -26,9 +26,8 @@ public class Path {
             if (dstFromEndPoint > stoppingDst) { slowDownIndex = i; break; }
         }
     }
-
-
     Vector2 V3ToV2(Vector3 v3) => new Vector2(v3.x, v3.z);
+
     public void DrawWithGizmos(Vector3 target) {
         Gizmos.color = Color.black;
         foreach (Vector3 p in lookPoints) Gizmos.DrawCube(p, Vector3.one * 0.1f);

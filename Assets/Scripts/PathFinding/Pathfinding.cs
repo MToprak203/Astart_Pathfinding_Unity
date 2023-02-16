@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class Pathfinding : MonoBehaviour
@@ -41,22 +42,33 @@ public class Pathfinding : MonoBehaviour
         
         if (pathSuccess) {
             waypoints = RetracePath(startNode, targetNode);
-            pathSuccess = waypoints.Length > 0;
+            pathSuccess = waypoints != null;
         }
         callback(new PathResult(waypoints, pathSuccess, request.callback));
     }
     Vector3[] RetracePath(Node startNode, Node endNode) {
         List<Node> path = new List<Node>();
-        Node currentNode = endNode;
-        while (currentNode != startNode) { 
-            if(currentNode.walkable) path.Add(currentNode);
+        Node currentNode = endNode.parent;
+        while (currentNode != startNode) {
+            if (currentNode.walkable) path.Add(currentNode);
             currentNode = currentNode.parent;
         }
-
-        Vector3[] waypoints = new Vector3[path.Count];
-        for (int i = 0; i < path.Count; i++) waypoints[i] = path[i].worldPosition;
-        Array.Reverse(waypoints);
+        Vector3[] waypoints = null;
+        if (path.Count > 0) waypoints = SimplifyPath(path);
         return waypoints;
+    }
+
+    Vector3[] SimplifyPath(List<Node> path) { 
+        List<Vector3> waypoints = new List<Vector3>();
+        Vector2 directionOld = Vector2.zero;
+        for (int i = path.Count - 1; i > 0; i--) {
+            Vector2 directionNew = new Vector2(path[i - 1].gridX - path[i].gridX, path[i - 1].gridY - path[i].gridY);
+            if (directionOld != directionNew) waypoints.Add(path[i].worldPosition);
+            directionOld = directionNew;
+        }
+        waypoints.Add(path[0].worldPosition);
+        return waypoints.ToArray();
+
     }
     int GetManhattanDistance(Node A, Node B) {
 

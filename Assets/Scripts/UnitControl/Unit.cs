@@ -40,6 +40,8 @@ public class Unit : MonoBehaviour
         transform.LookAt(path.lookPoints[0]);
         float speedPercent = 1;
 
+        float nodeCheckTimer = Grid.nodeDiameter / speed;
+
         while (followingPath) {
 
             Vector2 pos2D = new Vector2(transform.position.x, transform.position.z);
@@ -47,15 +49,21 @@ public class Unit : MonoBehaviour
 
             if (!followingPath) break;
 
-            speedPercent = stoppingDst == 0 ? 1 : Mathf.Clamp01(path.turnBoundaries[path.finishLineIndex].DistanceFromPoint(pos2D) / stoppingDst);
+            if (pathIndex >= path.slowDownIndex && stoppingDst > 0) {
+                speedPercent = Mathf.Clamp01(path.turnBoundaries[path.finishLineIndex].DistanceFromPoint(pos2D) / stoppingDst);
+                if (speedPercent < 0.001f) followingPath = false;
+            }
 
             Quaternion targetRotation = Quaternion.LookRotation(path.lookPoints[pathIndex] - transform.position);
             transform.rotation = Quaternion.Lerp(transform.rotation, targetRotation, Time.deltaTime * turnSpeed);
             transform.Translate(Vector3.forward * Time.deltaTime * speed * speedPercent, Space.Self);
 
-            Node newNode = Grid.GetNodeFromWorldPosition(transform.position);
-            if (node != newNode) AddPenaltyToCurrentNode(newNode);
-
+            if (nodeCheckTimer <= 0) {
+                Node newNode = Grid.GetNodeFromWorldPosition(transform.position);
+                if (node != newNode) AddPenaltyToCurrentNode(newNode);
+                nodeCheckTimer = Grid.nodeDiameter / speed;
+            } else nodeCheckTimer -= Time.deltaTime;
+            
             if (wait) yield return new WaitForSeconds(Grid.nodeDiameter / speed);
 
             yield return null;
@@ -69,11 +77,9 @@ public class Unit : MonoBehaviour
     void AddPenaltyToCurrentNode(Node newNode) {
         if (node != null) {
             node.movementPenalty -= unitNodePenalty * 5;
-            node.hasUnit = false;
         }
         node = newNode;
         node.movementPenalty += unitNodePenalty * 5;
-        node.hasUnit = true;
     }
     void OnDrawGizmos() { if (path != null && followingPath)  path.DrawWithGizmos(target); }
 

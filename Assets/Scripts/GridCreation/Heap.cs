@@ -23,10 +23,7 @@ public class Heap<T> where T : IHeapItem<T> {
         SortDown(items[0]);
         return firstItem;
     }
-    public void UpdateItem(T item) { 
-        SortUp(item);
-        
-    }
+    public void UpdateItem(T item) { SortUp(item); }
     public int Count { get { return currentItemCount; } }
     public bool Contains(T item) { return Equals(items[item.HeapIndex], item); }
     void SortDown(T item) {
