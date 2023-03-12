@@ -17,7 +17,7 @@ public class PathRequestManager : MonoBehaviour {
             lock (results) {
                 for (int i = 0; i < itemsInQueue; i++) {
                     PathResult result = results.Dequeue();
-                    result.callback(result.path, result.success);
+                    result.callback(result.path, result.success, result.ID);
                 }
             }
         }
@@ -34,13 +34,15 @@ public struct PathRequest
 {
     public Vector3 pathStart;
     public Vector3 pathEnd;
-    public Action<Vector3[], bool> callback;
+    public Action<Vector3[], bool, string> callback;
+    public string ID;
 
-    public PathRequest(Vector3 pathStart, Vector3 pathEnd, Action<Vector3[], bool> callback)
+    public PathRequest(Vector3 pathStart, Vector3 pathEnd, Action<Vector3[], bool, string> callback, string ID)
     {
         this.pathStart = pathStart;
         this.pathEnd = pathEnd;
         this.callback = callback;
+        this.ID = ID;
     }
 }
 
@@ -48,11 +50,13 @@ public struct PathResult
 {
     public Vector3[] path;
     public bool success;
-    public Action<Vector3[], bool> callback;
-    public PathResult(Vector3[] path, bool success, Action<Vector3[], bool> callback)
+    public Action<Vector3[], bool, string> callback;
+    public string ID;
+    public PathResult(Vector3[] path, bool success, Action<Vector3[], bool, string> callback, string ID)
     {
         this.path = path;
         this.success = success;
         this.callback = callback;
+        this.ID = ID;
     }
 }

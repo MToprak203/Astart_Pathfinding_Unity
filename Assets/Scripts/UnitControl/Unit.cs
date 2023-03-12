@@ -9,33 +9,43 @@ public class Unit : MonoBehaviour
     public float stoppingDst = 0f;
     Path path;
 
-    public int unitNodePenalty;
-
     int pathIndex;
-    public bool followingPath;
+    public bool followingPath = false;
     public LayerMask unitMask;
-    public float raycastDistance = .2f;
 
     Node node;
     Vector3 target;
 
-    bool wait = false;
+    public int nodeUnitPanelty = 50;
+
+    Vector3 posOnCollision;
+    bool backToPos = false;
 
     void Start() { 
         UnitSelections.Instance.unitList.Add(this);
         AddPenaltyToCurrentNode(Grid.GetNodeFromWorldPosition(transform.position));
     }
-    public void OnPathFound(Vector3[] waypoints, bool pathSuccessful) { 
+    void Update() {
+        if (backToPos) {
+            transform.position = Vector3.Lerp(transform.position, posOnCollision, Time.deltaTime);
+            if (Vector3.Distance(transform.position, posOnCollision) < 0.001f) backToPos = false;
+        }
+    }
+    public void OnPathFound(Vector3[] waypoints, bool pathSuccessful, string ID) { 
         if (pathSuccessful) { 
-            path = new Path(waypoints, transform.position, turnDst, stoppingDst);
+            path = new Path(waypoints, transform.position, turnDst, stoppingDst, ID);
             StopCoroutine("FollowPath");
             StartCoroutine("FollowPath");
         }
     }
     public void SetTarget(Vector3 target) { this.target = target; }
-    public void CreatePathRequest() { PathRequestManager.RequestPath(new PathRequest(transform.position, target, OnPathFound)); }
+    public void CreatePathRequest(string ID) {
+        if (Grid.GetNodeFromWorldPosition(transform.position) == Grid.GetNodeFromWorldPosition(target)) return;
+        PathRequestManager.RequestPath(new PathRequest(transform.position, target, OnPathFound, ID)); 
+    }
     IEnumerator FollowPath() {
         followingPath = true;
+        backToPos = false;
         pathIndex = 0;
         transform.LookAt(path.lookPoints[0]);
         float speedPercent = 1;
@@ -43,55 +53,60 @@ public class Unit : MonoBehaviour
         float nodeCheckTimer = Grid.nodeDiameter / speed;
 
         while (followingPath) {
+            
+            #region Cross Line Check
 
-            Vector2 pos2D = new Vector2(transform.position.x, transform.position.z);
-            if (path.turnBoundaries[pathIndex].HasCrossedLine(pos2D)) { if (pathIndex == path.finishLineIndex) followingPath = false; else pathIndex++; }
+                Vector2 pos2D = new Vector2(transform.position.x, transform.position.z);
+                if (path.turnBoundaries[pathIndex].HasCrossedLine(pos2D)) { if (pathIndex == path.finishLineIndex) followingPath = false; else pathIndex++; }
+
+                #endregion
 
             if (!followingPath) break;
 
-            if (pathIndex >= path.slowDownIndex && stoppingDst > 0) {
-                speedPercent = Mathf.Clamp01(path.turnBoundaries[path.finishLineIndex].DistanceFromPoint(pos2D) / stoppingDst);
-                if (speedPercent < 0.001f) followingPath = false;
-            }
+            #region Slowdown Check
 
-            Quaternion targetRotation = Quaternion.LookRotation(path.lookPoints[pathIndex] - transform.position);
-            transform.rotation = Quaternion.Lerp(transform.rotation, targetRotation, Time.deltaTime * turnSpeed);
-            transform.Translate(Vector3.forward * Time.deltaTime * speed * speedPercent, Space.Self);
+            if (pathIndex >= path.slowDownIndex && stoppingDst > 0) {
+                    speedPercent = Mathf.Clamp01(path.turnBoundaries[path.finishLineIndex].DistanceFromPoint(pos2D) / stoppingDst);
+                    if (speedPercent < 0.001f) followingPath = false;
+                }
+
+            #endregion
+
+            #region Movement And Rotation
+
+                Quaternion targetRotation = Quaternion.LookRotation(path.lookPoints[pathIndex] - transform.position);
+                transform.rotation = Quaternion.Lerp(transform.rotation, targetRotation, Time.deltaTime * turnSpeed);
+                transform.Translate(Vector3.forward * Time.deltaTime * speed * speedPercent, Space.Self);
+                #endregion
+
+            #region Node Update
 
             if (nodeCheckTimer <= 0) {
                 Node newNode = Grid.GetNodeFromWorldPosition(transform.position);
                 if (node != newNode) AddPenaltyToCurrentNode(newNode);
-                nodeCheckTimer = Grid.nodeDiameter / speed;
-            } else nodeCheckTimer -= Time.deltaTime;
-            
-            if (wait) yield return new WaitForSeconds(Grid.nodeDiameter / speed);
+            }
+            else nodeCheckTimer -= Time.deltaTime;
 
+            #endregion
+            
             yield return null;
         }
-        path = null;
-    }
-    public int GetRemainLookPoint() { 
-        if (path != null) return path.finishLineIndex - pathIndex;
-        return -1;
+        posOnCollision = transform.position;
     }
     void AddPenaltyToCurrentNode(Node newNode) {
         if (node != null) {
-            node.movementPenalty -= unitNodePenalty * 5;
+            node.hasUnit = false;
+            node.movementPenalty -= nodeUnitPanelty;
         }
         node = newNode;
-        node.movementPenalty += unitNodePenalty * 5;
+        node.hasUnit = true;
+        node.movementPenalty += nodeUnitPanelty;
     }
     void OnDrawGizmos() { if (path != null && followingPath)  path.DrawWithGizmos(target); }
 
     private void OnDestroy() { UnitSelections.Instance.unitList.Remove(this); UnitSelections.Instance.unitsSelected.Remove(this); }
 
-    private void OnTriggerEnter(Collider other)
-    {
-        if (!followingPath) return;
-        Unit cUnit = other.GetComponent<Unit>();
-        if (cUnit.followingPath) { if (cUnit.GetRemainLookPoint() < GetRemainLookPoint()) wait = true; }
-        else if (cUnit.GetRemainLookPoint() == 0) followingPath = false;
+    void OnCollisionExit(Collision collision) {
+        if (!followingPath) backToPos = true;
     }
-
-    private void OnTriggerExit(Collider other) { wait = false; }
 }

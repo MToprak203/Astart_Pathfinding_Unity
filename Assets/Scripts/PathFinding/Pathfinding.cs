@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 public class Pathfinding : MonoBehaviour
@@ -44,7 +43,7 @@ public class Pathfinding : MonoBehaviour
             waypoints = RetracePath(startNode, targetNode);
             pathSuccess = waypoints != null;
         }
-        callback(new PathResult(waypoints, pathSuccess, request.callback));
+        callback(new PathResult(waypoints, pathSuccess, request.callback, request.ID));
     }
     Vector3[] RetracePath(Node startNode, Node endNode) {
         List<Node> path = new List<Node>();

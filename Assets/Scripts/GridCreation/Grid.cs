@@ -1,12 +1,11 @@
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 
 public class Grid : MonoBehaviour
 {
     public bool displayGridGizmos;
-    public LayerMask unwalkableMask;
     public LayerMask unitMask;
+    public LayerMask unwalkableMask;
     public Vector2 gridWorldSize;
     public float nodeRadius;
     public TerrainType[] walkableRegions;
@@ -56,17 +55,6 @@ public class Grid : MonoBehaviour
         BlurPenaltyMap(3);
     }
 
-    public static Node GetNodeFromWorldPosition(Vector3 worldPosition) {
-        float percentX = (worldPosition.x + instance.gridWorldSize.x / 2) / instance.gridWorldSize.x;
-        float percentY = (worldPosition.z + instance.gridWorldSize.y / 2) / instance.gridWorldSize.y;
-        percentX = Mathf.Clamp01(percentX);
-        percentY = Mathf.Clamp01(percentY);
-
-        int x = Mathf.RoundToInt((instance.gridSizeX - 1) * percentX);
-        int y = Mathf.RoundToInt((instance.gridSizeY - 1) * percentY);
-        return instance.grid[x, y];
-    }
-
     void BlurPenaltyMap(int blurSize) {
         int kernelSize = blurSize * 2 + 1;
         int kernelExtends = (kernelSize - 1) / 2;
@@ -105,6 +93,17 @@ public class Grid : MonoBehaviour
             }
         }
     }
+    public static Node GetNodeFromWorldPosition(Vector3 worldPosition)
+    {
+        float percentX = (worldPosition.x + instance.gridWorldSize.x / 2) / instance.gridWorldSize.x;
+        float percentY = (worldPosition.z + instance.gridWorldSize.y / 2) / instance.gridWorldSize.y;
+        percentX = Mathf.Clamp01(percentX);
+        percentY = Mathf.Clamp01(percentY);
+
+        int x = Mathf.RoundToInt((instance.gridSizeX - 1) * percentX);
+        int y = Mathf.RoundToInt((instance.gridSizeY - 1) * percentY);
+        return instance.grid[x, y];
+    }
     // Get All Neighbours
     public static List<Node> GetNeighbours(Node node) {
         List<Node> neighbours = new List<Node>();
@@ -121,7 +120,7 @@ public class Grid : MonoBehaviour
         return neighbours;
     }
     // Get neighbour closest to target position and not occupied by other units.
-    public static Node GetNeighbour(Node node, Vector3 targetPos)
+    public static Node GetNeighbourClosestToTarget(Node node, Vector3 targetPos)
     {
         Node closest = null;
         float minDst = 0;
@@ -135,7 +134,7 @@ public class Grid : MonoBehaviour
         }
         return closest;
     }
-    public static Node GetRelativeNode(Node node, Vector2 offset) {
+    public static Node GetNodeInDirection(Node node, Vector2 offset) {
         if (node.gridX + offset.x < 0 || node.gridX + offset.x >= instance.gridWorldSize.x) return null;
         if (node.gridY + offset.y < 0 || node.gridY + offset.y >= instance.gridWorldSize.y) return null;
         return instance.grid[node.gridX + (int)offset.x, node.gridY + (int)offset.y];
@@ -160,3 +159,4 @@ public class Grid : MonoBehaviour
         public int terrainPenalty;
     }
 }
+

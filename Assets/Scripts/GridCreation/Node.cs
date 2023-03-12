@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class Node : IHeapItem<Node>
@@ -15,6 +13,7 @@ public class Node : IHeapItem<Node>
     public Node parent;
     int heapIndex;
 
+    public bool hasUnit;
     public int fCost { get { return gCost + hCost; } }
 
     public int HeapIndex { get => heapIndex; set => heapIndex = value; }

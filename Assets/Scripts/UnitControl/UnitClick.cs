@@ -1,4 +1,5 @@
 using System.Collections;
+using UnityEditor;
 using UnityEngine;
 
 public class UnitClick : MonoBehaviour
@@ -9,7 +10,7 @@ public class UnitClick : MonoBehaviour
 
     Vector3 currentTarget;
 
-    const float moveCD = 0.1f;
+    const float moveCD = 0.3f;
     float moveCDTimer = moveCD;
 
     #region SquareFormation
@@ -18,22 +19,23 @@ public class UnitClick : MonoBehaviour
     [SerializeField, Range(0f, 10f)] float noise = 0;
 
     IEnumerator SquareFormation() {
-        yield return new WaitForEndOfFrame();
         int size = UnitSelections.Instance.unitsSelected.Count;
         int unitIndex = 0;
         int length = Mathf.FloorToInt(Mathf.Sqrt(size)) + 1;
+        Unit[] units = UnitSelections.Instance.unitsSelected.ToArray();
+        string ID = GUID.Generate().ToString();
 
         for (int x = -length / 2; x <= length / 2; x++) {
             for (int z = -length / 2; z <= length / 2; z++) {
+                if (unitIndex == size) yield break;
                 Vector3 pos = new Vector3(x, 0, z);
                 pos = pos * Grid.nodeDiameter * spread + currentTarget;
                 pos += GetNoise(pos);
-                Unit unit = UnitSelections.Instance.unitsSelected[unitIndex];
+                Unit unit = units[unitIndex];
                 unit.SetTarget(pos);
-                unit.CreatePathRequest();
+                unit.CreatePathRequest(ID);
                 unitIndex++;
-                if (unitIndex == size) yield break;
-                yield return null;
+                yield return new WaitForSeconds(0.01f);
             }
         }
     }
@@ -73,4 +75,7 @@ public class UnitClick : MonoBehaviour
         return new Vector3(_noise, 0, _noise);
     }
 
+    private void OnApplicationQuit() {
+        StopCoroutine("SquareFormation");
+    }
 }
